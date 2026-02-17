@@ -33,6 +33,12 @@ export default function Home() {
           </svg>
           Connect with Spotify
         </button>
+        <button
+          onClick={() => router.push("/demo")}
+          className="inline-flex items-center gap-2 border border-gray-600 hover:border-gray-400 text-gray-300 hover:text-white font-medium px-8 py-4 rounded-full text-lg transition-colors ml-4"
+        >
+          Try Demo
+        </button>
         <div className="mt-12 grid grid-cols-3 gap-6 text-center">
           <div className="p-4">
             <div className="text-3xl font-bold text-green-400">BPM</div>
