@@ -30,26 +30,70 @@ const CAMELOT_MAP: Record<string, string> = {
   "11-0": "10A", // B minor
 };
 
-// Color mapping for Camelot keys (grouped by number for visual harmony)
-const CAMELOT_COLORS: Record<string, string> = {
-  "1A": "bg-rose-600",    "1B": "bg-rose-500",
-  "2A": "bg-orange-600",  "2B": "bg-orange-500",
-  "3A": "bg-amber-600",   "3B": "bg-amber-500",
-  "4A": "bg-yellow-600",  "4B": "bg-yellow-500",
-  "5A": "bg-lime-600",    "5B": "bg-lime-500",
-  "6A": "bg-green-600",   "6B": "bg-green-500",
-  "7A": "bg-emerald-600", "7B": "bg-emerald-500",
-  "8A": "bg-teal-600",    "8B": "bg-teal-500",
-  "9A": "bg-cyan-600",    "9B": "bg-cyan-500",
-  "10A": "bg-blue-600",   "10B": "bg-blue-500",
-  "11A": "bg-violet-600", "11B": "bg-violet-500",
-  "12A": "bg-purple-600", "12B": "bg-purple-500",
+// Each Camelot number (1-12) maps to a hue on the color wheel (0-360)
+// Evenly spaced: 1→0° (red), 2→30° (orange), 3→60° (yellow), etc.
+const CAMELOT_HUES: Record<number, number> = {
+  1: 0,     // Red
+  2: 30,    // Orange
+  3: 50,    // Gold/Yellow
+  4: 80,    // Yellow-Green
+  5: 120,   // Green
+  6: 150,   // Teal-Green
+  7: 175,   // Teal
+  8: 195,   // Cyan
+  9: 220,   // Blue
+  10: 255,  // Indigo
+  11: 280,  // Purple
+  12: 315,  // Magenta/Pink
 };
 
 export function getCamelotKey(key: number, mode: number): string {
   return CAMELOT_MAP[`${key}-${mode}`] ?? "N/A";
 }
 
-export function getCamelotColor(camelotKey: string): string {
-  return CAMELOT_COLORS[camelotKey] ?? "bg-gray-500";
+/**
+ * Generate an HSL color based on Camelot key (hue) and BPM (vibrancy).
+ * - Camelot number (1-12) determines the hue position on the color wheel
+ * - A (minor) vs B (major): minor is slightly deeper, major is slightly brighter
+ * - BPM (typically 60-200) controls saturation and lightness:
+ *   - Low BPM → muted, desaturated
+ *   - High BPM → vibrant, saturated
+ */
+export function getCamelotHSL(
+  camelotKey: string,
+  bpm: number
+): { hue: number; saturation: number; lightness: number; css: string } {
+  const match = camelotKey.match(/^(\d+)([AB])$/);
+  if (!match) return { hue: 0, saturation: 0, lightness: 30, css: "hsl(0, 0%, 30%)" };
+
+  const num = parseInt(match[1]);
+  const letter = match[2];
+  const hue = CAMELOT_HUES[num] ?? 0;
+
+  // Normalize BPM to 0-1 range (60-200 typical range)
+  const bpmNorm = Math.max(0, Math.min(1, (bpm - 60) / 140));
+
+  // Saturation: low BPM = 30%, high BPM = 95%
+  const saturation = 30 + bpmNorm * 65;
+
+  // Lightness: minor (A) is deeper (darker), major (B) is brighter
+  // Also BPM affects it: low BPM = darker, high BPM = more vivid
+  const baseLightness = letter === "A" ? 38 : 48;
+  const lightness = baseLightness + bpmNorm * 15;
+
+  return {
+    hue,
+    saturation,
+    lightness,
+    css: `hsl(${hue}, ${Math.round(saturation)}%, ${Math.round(lightness)}%)`,
+  };
+}
+
+/**
+ * Get a CSS string for the row accent glow based on key + BPM
+ */
+export function getTrackColor(key: number, mode: number, bpm: number): string {
+  const camelotKey = getCamelotKey(key, mode);
+  if (camelotKey === "N/A") return "transparent";
+  return getCamelotHSL(camelotKey, bpm).css;
 }
