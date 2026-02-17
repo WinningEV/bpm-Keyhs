@@ -13,8 +13,9 @@ interface SongTableProps {
 }
 
 export default function SongTable({ tracks, loading }: SongTableProps) {
-  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -25,36 +26,52 @@ export default function SongTable({ tracks, loading }: SongTableProps) {
     }
   };
 
-  const sorted = [...tracks].sort((a, b) => {
-    const dir = sortDir === "asc" ? 1 : -1;
-    switch (sortField) {
-      case "name":
-        return dir * a.name.localeCompare(b.name);
-      case "artist":
-        return dir * a.artists[0].name.localeCompare(b.artists[0].name);
-      case "bpm":
-        return dir * (a.bpm - b.bpm);
-      case "key":
-        return dir * (a.key * 2 + a.mode - (b.key * 2 + b.mode));
-      default:
-        return 0;
-    }
-  });
+  const sorted = sortField
+    ? [...tracks].sort((a, b) => {
+        const dir = sortDir === "asc" ? 1 : -1;
+        switch (sortField) {
+          case "name":
+            return dir * a.name.localeCompare(b.name);
+          case "artist":
+            return dir * a.artists[0].name.localeCompare(b.artists[0].name);
+          case "bpm":
+            return dir * (a.bpm - b.bpm);
+          case "key":
+            return dir * (a.key * 2 + a.mode - (b.key * 2 + b.mode));
+          default:
+            return 0;
+        }
+      })
+    : tracks;
 
-  const SortIcon = ({ field }: { field: SortField }) => (
-    <span className="ml-1 text-gray-500">
-      {sortField === field ? (sortDir === "asc" ? "\u25B2" : "\u25BC") : "\u25B4"}
-    </span>
-  );
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return null;
+    return (
+      <svg className="w-4 h-4 ml-1 inline-block text-green-400" fill="currentColor" viewBox="0 0 24 24">
+        {sortDir === "asc" ? (
+          <path d="M7 14l5-5 5 5H7z" />
+        ) : (
+          <path d="M7 10l5 5 5-5H7z" />
+        )}
+      </svg>
+    );
+  };
 
   if (loading) {
     return (
-      <div className="space-y-3">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-14 bg-gray-800/50 rounded-lg animate-pulse"
-          />
+      <div className="space-y-1">
+        {Array.from({ length: 10 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4 px-4 py-3 rounded-md">
+            <div className="w-8 h-4 bg-gray-800 rounded animate-pulse" />
+            <div className="w-10 h-10 bg-gray-800 rounded animate-pulse" />
+            <div className="flex-1 space-y-2">
+              <div className="w-48 h-4 bg-gray-800 rounded animate-pulse" />
+              <div className="w-32 h-3 bg-gray-800 rounded animate-pulse" />
+            </div>
+            <div className="w-24 h-4 bg-gray-800 rounded animate-pulse" />
+            <div className="w-16 h-4 bg-gray-800 rounded animate-pulse" />
+            <div className="w-12 h-6 bg-gray-800 rounded-full animate-pulse" />
+          </div>
         ))}
       </div>
     );
@@ -62,83 +79,125 @@ export default function SongTable({ tracks, loading }: SongTableProps) {
 
   if (tracks.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        No liked songs found. Like some songs on Spotify first!
+      <div className="text-center py-16 text-gray-500">
+        <svg className="w-16 h-16 mx-auto mb-4 text-gray-700" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+        </svg>
+        <p className="text-lg">Songs you like will appear here</p>
+        <p className="text-sm mt-1">Save songs by tapping the heart icon.</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-800">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-gray-800 text-left text-sm text-gray-400">
-            <th className="px-4 py-3 w-12">#</th>
-            <th
-              className="px-4 py-3 cursor-pointer hover:text-white transition-colors"
-              onClick={() => handleSort("name")}
-            >
-              Title <SortIcon field="name" />
-            </th>
-            <th
-              className="px-4 py-3 cursor-pointer hover:text-white transition-colors"
-              onClick={() => handleSort("artist")}
-            >
-              Artist <SortIcon field="artist" />
-            </th>
-            <th
-              className="px-4 py-3 cursor-pointer hover:text-white transition-colors text-right"
-              onClick={() => handleSort("bpm")}
-            >
-              BPM <SortIcon field="bpm" />
-            </th>
-            <th
-              className="px-4 py-3 cursor-pointer hover:text-white transition-colors text-center"
-              onClick={() => handleSort("key")}
-            >
-              Key <SortIcon field="key" />
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((track, i) => (
-            <tr
+    <div>
+      {/* Header row */}
+      <div className="grid grid-cols-[40px_1fr_1fr_80px_72px] sm:grid-cols-[40px_minmax(200px,2fr)_minmax(150px,1fr)_minmax(100px,1fr)_80px_72px] gap-4 px-4 py-2 border-b border-gray-800 text-xs font-medium uppercase tracking-wider text-gray-400">
+        <div className="text-center">#</div>
+        <div
+          className="cursor-pointer hover:text-white transition-colors flex items-center"
+          onClick={() => handleSort("name")}
+        >
+          Title <SortIcon field="name" />
+        </div>
+        <div
+          className="cursor-pointer hover:text-white transition-colors items-center hidden sm:flex"
+          onClick={() => handleSort("artist")}
+        >
+          Artist <SortIcon field="artist" />
+        </div>
+        <div className="hidden sm:block" />
+        <div
+          className="cursor-pointer hover:text-white transition-colors flex items-center justify-end"
+          onClick={() => handleSort("bpm")}
+        >
+          BPM <SortIcon field="bpm" />
+        </div>
+        <div
+          className="cursor-pointer hover:text-white transition-colors flex items-center justify-center"
+          onClick={() => handleSort("key")}
+        >
+          Key <SortIcon field="key" />
+        </div>
+      </div>
+
+      {/* Track rows */}
+      <div className="mt-1">
+        {sorted.map((track, i) => {
+          const isHovered = hoveredRow === track.id;
+          const albumImg = track.album.images[2]?.url || track.album.images[0]?.url;
+
+          return (
+            <div
               key={track.id}
-              className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors"
+              className="group grid grid-cols-[40px_1fr_1fr_80px_72px] sm:grid-cols-[40px_minmax(200px,2fr)_minmax(150px,1fr)_minmax(100px,1fr)_80px_72px] gap-4 px-4 py-2 rounded-md hover:bg-white/10 transition-colors items-center"
+              onMouseEnter={() => setHoveredRow(track.id)}
+              onMouseLeave={() => setHoveredRow(null)}
             >
-              <td className="px-4 py-3 text-gray-500 text-sm">{i + 1}</td>
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-3">
-                  {track.album.images[2] && (
-                    <img
-                      src={track.album.images[2].url}
-                      alt={track.album.name}
-                      className="w-10 h-10 rounded"
-                      width={40}
-                      height={40}
-                    />
-                  )}
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{track.name}</div>
-                    <div className="text-sm text-gray-500 truncate">
-                      {track.album.name}
-                    </div>
+              {/* Number / Play icon */}
+              <div className="text-center text-sm text-gray-400 tabular-nums">
+                {isHovered ? (
+                  <svg className="w-4 h-4 mx-auto text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                ) : (
+                  i + 1
+                )}
+              </div>
+
+              {/* Title + Album art */}
+              <div className="flex items-center gap-3 min-w-0">
+                {albumImg ? (
+                  <img
+                    src={albumImg}
+                    alt={track.album.name}
+                    className="w-10 h-10 rounded shadow-md flex-shrink-0"
+                    width={40}
+                    height={40}
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded shadow-md flex-shrink-0 bg-gray-800 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                    </svg>
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-white font-normal text-[15px] truncate leading-tight">
+                    {track.name}
+                  </div>
+                  <div className="text-gray-400 text-sm truncate sm:hidden">
+                    {track.artists.map((a) => a.name).join(", ")}
+                  </div>
+                  <div className="text-gray-400 text-sm truncate hidden sm:block">
+                    {track.album.name}
                   </div>
                 </div>
-              </td>
-              <td className="px-4 py-3 text-gray-300">
+              </div>
+
+              {/* Artist (hidden on mobile, shown in title cell instead) */}
+              <div className="text-sm text-gray-400 truncate hidden sm:block hover:text-white cursor-pointer transition-colors">
                 {track.artists.map((a) => a.name).join(", ")}
-              </td>
-              <td className="px-4 py-3 text-right font-mono text-green-400">
+              </div>
+
+              {/* Album (hidden on mobile) */}
+              <div className="text-sm text-gray-400 truncate hidden sm:block hover:text-white cursor-pointer transition-colors">
+                {track.album.name}
+              </div>
+
+              {/* BPM */}
+              <div className="text-right text-sm font-mono tabular-nums text-gray-300">
                 {track.bpm || "—"}
-              </td>
-              <td className="px-4 py-3 text-center">
+              </div>
+
+              {/* Camelot Key */}
+              <div className="flex justify-center">
                 <CamelotBadge musicalKey={track.key} mode={track.mode} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
