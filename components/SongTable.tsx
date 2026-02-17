@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { TrackWithFeatures } from "@/lib/spotify";
-import { getTrackColor } from "@/lib/camelot";
+import { getTrackColor, getCamelotHSL, getCamelotKey } from "@/lib/camelot";
 import CamelotBadge from "./CamelotBadge";
 
 type SortField = "name" | "artist" | "bpm" | "key";
@@ -48,7 +48,7 @@ export default function SongTable({ tracks, loading }: SongTableProps) {
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return null;
     return (
-      <svg className="w-4 h-4 ml-1 inline-block text-green-400" fill="currentColor" viewBox="0 0 24 24">
+      <svg className="w-3.5 h-3.5 ml-1 inline-block" fill="currentColor" viewBox="0 0 24 24">
         {sortDir === "asc" ? (
           <path d="M7 14l5-5 5 5H7z" />
         ) : (
@@ -58,11 +58,29 @@ export default function SongTable({ tracks, loading }: SongTableProps) {
     );
   };
 
+  // Get row background style based on track color
+  const getRowStyle = (track: TrackWithFeatures, isHovered: boolean) => {
+    const camelotKey = getCamelotKey(track.key, track.mode);
+    if (camelotKey === "N/A") return {};
+
+    const { hue, saturation, lightness } = getCamelotHSL(camelotKey, track.bpm);
+
+    // Serato-style: full row colored background, slightly transparent
+    // Brighter on hover
+    const baseLightness = isHovered ? lightness * 0.45 : lightness * 0.3;
+    const baseSaturation = isHovered ? saturation * 0.9 : saturation * 0.7;
+
+    return {
+      backgroundColor: `hsl(${hue}, ${Math.round(baseSaturation)}%, ${Math.round(baseLightness)}%)`,
+      borderLeft: `3px solid hsl(${hue}, ${Math.round(saturation)}%, ${Math.round(lightness)}%)`,
+    };
+  };
+
   if (loading) {
     return (
-      <div className="space-y-1">
+      <div className="rounded-lg overflow-hidden border border-gray-800/50">
         {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-md">
+          <div key={i} className="flex items-center gap-3 px-3 py-2.5 border-b border-black/20">
             <div className="w-10 h-10 bg-gray-800 rounded animate-pulse flex-shrink-0" />
             <div className="flex-1 space-y-2 min-w-0">
               <div className="w-3/4 h-4 bg-gray-800 rounded animate-pulse" />
@@ -89,10 +107,9 @@ export default function SongTable({ tracks, loading }: SongTableProps) {
   }
 
   return (
-    <div>
+    <div className="rounded-lg overflow-hidden">
       {/* Header row - desktop */}
-      <div className="hidden sm:grid grid-cols-[4px_32px_2fr_1fr_1fr_64px_56px] gap-4 px-4 py-2 border-b border-gray-800 text-xs font-medium uppercase tracking-wider text-gray-400">
-        <div />
+      <div className="hidden sm:grid grid-cols-[32px_2fr_1fr_1fr_64px_56px] gap-4 px-4 py-2.5 bg-black/60 backdrop-blur-sm text-[11px] font-semibold uppercase tracking-widest text-gray-400 border-b border-white/10">
         <div className="text-center">#</div>
         <div
           className="cursor-pointer hover:text-white transition-colors flex items-center"
@@ -122,7 +139,7 @@ export default function SongTable({ tracks, loading }: SongTableProps) {
       </div>
 
       {/* Mobile sort controls */}
-      <div className="flex sm:hidden items-center gap-2 px-3 py-2 overflow-x-auto border-b border-gray-800 text-xs">
+      <div className="flex sm:hidden items-center gap-2 px-3 py-2 overflow-x-auto bg-black/60 backdrop-blur-sm text-xs border-b border-white/10">
         <span className="text-gray-500 flex-shrink-0">Sort:</span>
         {(["name", "artist", "bpm", "key"] as SortField[]).map((field) => (
           <button
@@ -143,11 +160,12 @@ export default function SongTable({ tracks, loading }: SongTableProps) {
       </div>
 
       {/* Track rows */}
-      <div className="mt-1">
+      <div>
         {sorted.map((track, i) => {
           const isHovered = hoveredRow === track.id;
           const albumImg = track.album.images[2]?.url || track.album.images[0]?.url;
           const trackColor = getTrackColor(track.key, track.mode, track.bpm);
+          const rowStyle = getRowStyle(track, isHovered);
 
           return (
             <div
@@ -157,20 +175,10 @@ export default function SongTable({ tracks, loading }: SongTableProps) {
             >
               {/* Desktop row */}
               <div
-                className="hidden sm:grid grid-cols-[4px_32px_2fr_1fr_1fr_64px_56px] gap-4 px-4 py-2 rounded-md hover:bg-white/10 transition-all items-center relative"
-                style={{
-                  background: isHovered
-                    ? `linear-gradient(90deg, ${trackColor}18 0%, transparent 60%)`
-                    : undefined,
-                }}
+                className="hidden sm:grid grid-cols-[32px_2fr_1fr_1fr_64px_56px] gap-4 px-4 py-2 transition-all duration-150 items-center border-b border-black/20 cursor-default"
+                style={rowStyle}
               >
-                {/* Color accent bar */}
-                <div
-                  className="w-1 h-8 rounded-full self-center"
-                  style={{ backgroundColor: trackColor }}
-                />
-
-                <div className="text-center text-sm text-gray-400 tabular-nums">
+                <div className="text-center text-sm text-white/60 tabular-nums">
                   {isHovered ? (
                     <svg className="w-4 h-4 mx-auto text-white" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M8 5v14l11-7z" />
@@ -185,34 +193,33 @@ export default function SongTable({ tracks, loading }: SongTableProps) {
                     <img
                       src={albumImg}
                       alt={track.album.name}
-                      className="w-10 h-10 rounded shadow-md flex-shrink-0"
+                      className="w-10 h-10 rounded shadow-lg flex-shrink-0"
                       width={40}
                       height={40}
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded shadow-md flex-shrink-0 bg-gray-800 flex items-center justify-center">
-                      <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+                    <div className="w-10 h-10 rounded shadow-lg flex-shrink-0 bg-black/30 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white/30" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
                       </svg>
                     </div>
                   )}
                   <div className="min-w-0">
-                    <div className="text-white text-[15px] truncate">{track.name}</div>
+                    <div className="text-white font-medium text-[15px] truncate drop-shadow-sm">
+                      {track.name}
+                    </div>
                   </div>
                 </div>
 
-                <div className="text-sm text-gray-400 truncate">
+                <div className="text-sm text-white/70 truncate">
                   {track.artists.map((a) => a.name).join(", ")}
                 </div>
 
-                <div className="text-sm text-gray-400 truncate">
+                <div className="text-sm text-white/50 truncate">
                   {track.album.name}
                 </div>
 
-                <div
-                  className="text-right text-sm font-mono tabular-nums font-medium"
-                  style={{ color: trackColor }}
-                >
+                <div className="text-right text-sm font-mono tabular-nums font-bold text-white drop-shadow-sm">
                   {track.bpm || "\u2014"}
                 </div>
 
@@ -223,43 +230,37 @@ export default function SongTable({ tracks, loading }: SongTableProps) {
 
               {/* Mobile row */}
               <div
-                className="flex sm:hidden items-center gap-3 px-3 py-2.5 active:bg-white/10 transition-colors relative"
+                className="flex sm:hidden items-center gap-3 px-3 py-2.5 transition-all duration-150 border-b border-black/20"
+                style={rowStyle}
               >
-                {/* Color accent bar - left edge */}
-                <div
-                  className="w-1 absolute left-0 top-2 bottom-2 rounded-r-full"
-                  style={{ backgroundColor: trackColor }}
-                />
-
                 {albumImg ? (
                   <img
                     src={albumImg}
                     alt={track.album.name}
-                    className="w-12 h-12 rounded shadow-md flex-shrink-0"
+                    className="w-12 h-12 rounded shadow-lg flex-shrink-0"
                     width={48}
                     height={48}
                   />
                 ) : (
-                  <div className="w-12 h-12 rounded shadow-md flex-shrink-0 bg-gray-800 flex items-center justify-center">
-                    <svg className="w-6 h-6 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+                  <div className="w-12 h-12 rounded shadow-lg flex-shrink-0 bg-black/30 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white/30" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
                     </svg>
                   </div>
                 )}
 
                 <div className="flex-1 min-w-0">
-                  <div className="text-white text-[15px] truncate">{track.name}</div>
-                  <div className="text-gray-400 text-sm truncate">
+                  <div className="text-white font-medium text-[15px] truncate drop-shadow-sm">
+                    {track.name}
+                  </div>
+                  <div className="text-white/60 text-sm truncate">
                     {track.artists.map((a) => a.name).join(", ")}
                   </div>
                 </div>
 
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <span
-                    className="text-xs font-mono tabular-nums font-medium"
-                    style={{ color: trackColor }}
-                  >
-                    {track.bpm} BPM
+                  <span className="text-sm font-mono tabular-nums font-bold text-white drop-shadow-sm">
+                    {track.bpm}
                   </span>
                   <CamelotBadge musicalKey={track.key} mode={track.mode} bpm={track.bpm} />
                 </div>
